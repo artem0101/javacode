@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<databaseChangeLog
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.1.xsd">
+
+    <changeSet id="wallet-createSchema-wallet" author="username" dbms="postgresql">
+        <sql endDelimiter=";">
+            CREATE SCHEMA IF NOT EXISTS wallet;
+        </sql>
+    </changeSet>
+
+    <changeSet id="initial-wallet.create_table_wallet_to_operation" author="username" dbms="postgresql">
+        <createTable schemaName="wallet" tableName="wallet">
+            <column name="id" type="bigint">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="wallet_id" type="uuid">
+                <constraints nullable="false"/>
+            </column>
+            <column name="amount" type="numeric(10,2)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="initial-wallet.wallet_id_seq" author="username" dbms="postgresql">
+        <createSequence schemaName="wallet" sequenceName="wallet_id_seq" startValue="2000"/>
+    </changeSet>
+
+</databaseChangeLog>
