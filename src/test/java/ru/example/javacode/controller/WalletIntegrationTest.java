@@ -30,9 +30,8 @@ class WalletIntegrationTest {
     @LocalServerPort
     private Integer port;
 
-    private final String getUrl = "/api/v1/wallets/";
-    private final String postUrl = "/api/v1/wallet";
-    protected RequestSpecification requestSpecification;
+    private static final String V_1_WALLETS = "/api/v1/wallets/";
+    private RequestSpecification requestSpecification;
 
     @BeforeEach
     public void setUpAbstractIntegrationTest() {
@@ -50,7 +49,7 @@ class WalletIntegrationTest {
     void findNonExistedWalletTest() {
         given(requestSpecification)
                 .when()
-                .get(getUrl + UUID.randomUUID())
+                .get(V_1_WALLETS + UUID.randomUUID())
                 .then()
                 .statusCode(HttpStatus.NOT_FOUND.value())
                 .log()
@@ -63,7 +62,7 @@ class WalletIntegrationTest {
 
         given(requestSpecification)
                 .when()
-                .get(getUrl + uuid)
+                .get(V_1_WALLETS + uuid)
                 .then()
                 .statusCode(HttpStatus.NOT_FOUND.value())
                 .log()
@@ -79,34 +78,44 @@ class WalletIntegrationTest {
         secondWalletOperation.setAmount(BigDecimal.ONE);
         secondWalletOperation.setOperationType(OperationType.WITHDRAW);
 
-        var firstCreateResult = postRequest(firstWalletOperation, HttpStatus.CREATED.value())
-                .extract()
-                .as(WalletDto.class);
+        createOperationWallet(firstWalletOperation);
 
-        Assertions.assertEquals(firstCreateResult.getWalletId(), firstWalletOperation.getWalletId());
-        Assertions.assertEquals(firstCreateResult.getAmount(), firstWalletOperation.getAmount());
-
-        var firstGetResult = getRequest(uuid, HttpStatus.OK.value())
-                .extract()
-                .as(WalletDto.class);
-
-        Assertions.assertEquals(firstGetResult.getWalletId(), firstWalletOperation.getWalletId());
-        Assertions.assertEquals(0, firstGetResult.getAmount().compareTo(firstWalletOperation.getAmount()));
+        getWalletInfo(uuid, secondWalletOperation, firstWalletOperation.getAmount());
 
         var expectedAmount = firstWalletOperation.getAmount().subtract(secondWalletOperation.getAmount());
 
-        var secondUpdateResult = postRequest(secondWalletOperation, HttpStatus.CREATED.value())
-                .extract()
-                .as(WalletDto.class);
-        Assertions.assertEquals(secondUpdateResult.getWalletId(), firstWalletOperation.getWalletId());
-        Assertions.assertEquals(0, secondUpdateResult.getAmount().compareTo(expectedAmount));
+        createOperationWallet(secondWalletOperation, expectedAmount);
 
+        getWalletInfo(uuid, secondWalletOperation, expectedAmount);
+    }
+
+    private static void assertionWalletInfo(CreateOrUpdateWalletDto secondWalletOperation, BigDecimal expectedAmount, WalletDto secondGetResult) {
+        Assertions.assertEquals(secondGetResult.getWalletId(), secondWalletOperation.getWalletId());
+        Assertions.assertEquals(0, secondGetResult.getAmount().compareTo(expectedAmount));
+    }
+
+    private void getWalletInfo(UUID uuid, CreateOrUpdateWalletDto secondWalletOperation, BigDecimal expectedAmount) {
         var secondGetResult = getRequest(uuid, HttpStatus.OK.value())
                 .extract()
                 .as(WalletDto.class);
 
-        Assertions.assertEquals(secondGetResult.getWalletId(), secondWalletOperation.getWalletId());
-        Assertions.assertEquals(0, secondGetResult.getAmount().compareTo(expectedAmount));
+        assertionWalletInfo(secondWalletOperation, expectedAmount, secondGetResult);
+    }
+
+    private void createOperationWallet(CreateOrUpdateWalletDto dto,  BigDecimal amount) {
+        var result = postRequest(dto, HttpStatus.CREATED.value())
+                .extract()
+                .as(WalletDto.class);
+
+        assertionWalletInfo(dto, amount, result);
+    }
+
+    private void createOperationWallet(CreateOrUpdateWalletDto dto) {
+        var result = postRequest(dto, HttpStatus.CREATED.value())
+                .extract()
+                .as(WalletDto.class);
+
+        assertionWalletInfo(dto, dto.getAmount(), result);
     }
 
     @Test
@@ -120,6 +129,7 @@ class WalletIntegrationTest {
     }
 
     private ValidatableResponse postRequest(CreateOrUpdateWalletDto dto, int statusCode) {
+        String postUrl = "/api/v1/wallet";
         return given(requestSpecification)
                 .header("Content-type", "application/json")
                 .and()
@@ -135,7 +145,7 @@ class WalletIntegrationTest {
     private ValidatableResponse getRequest(UUID uuid, int statusCode) {
         return given(requestSpecification)
                 .when()
-                .get(getUrl + uuid)
+                .get(V_1_WALLETS + uuid)
                 .then()
                 .statusCode(statusCode)
                 .body("size()", is(2))

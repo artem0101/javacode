@@ -2,7 +2,7 @@ package ru.example.javacode.service.impl;
 
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,41 +25,34 @@ public class WalletServiceImpl implements WalletService {
     @Override
     @Transactional(readOnly = true)
     public WalletDto findByWalletId(UUID uuid) {
-//        return Optional.ofNullable(walletMapper.toWalletDto(walletRepository.findWalletByWalletId(uuid)
-//                                                                            .get()));
-
-        var result = walletRepository.findWalletByWalletId(uuid).orElse(null);
-        return walletMapper.toWalletDto(result);
+        return walletRepository.findWalletByWalletId(uuid)
+                .map(walletMapper::toWalletDto)
+                .orElse(null);
     }
 
     @Override
     @Transactional
     public WalletDto createOrUpdateWallet(CreateOrUpdateWalletDto dto) {
-        var resultWallet = new AtomicReference<Wallet>();
-        walletRepository.findWalletByWalletId(dto.getWalletId())
-                        .ifPresentOrElse(wallet -> {
-                            if (dto.getOperationType() == OperationType.WITHDRAW) {
-                                wallet.setAmount(wallet.getAmount()
-                                                       .subtract(dto.getAmount()));
-                            } else if (dto.getOperationType() == OperationType.DEPOSIT) {
-                                wallet.setAmount(wallet.getAmount()
-                                                       .add(dto.getAmount()));
-                            }
+        var result = walletRepository.findWalletByWalletId(dto.getWalletId())
+                .map(wallet -> walletRepository.save(
+                        Optional.of(wallet)
+                                .map(w -> {
+                                    w.setAmount(dto.getOperationType() == OperationType.WITHDRAW
+                                            ? w.getAmount().subtract(dto.getAmount())
+                                            : w.getAmount().add(dto.getAmount()));
+                                    return w;
+                                })
+                                .orElse(wallet)))
+                .orElseGet(() -> {
+                    var newWallet = new Wallet();
+                    newWallet.setWalletId(dto.getWalletId());
+                    newWallet.setAmount(dto.getOperationType() == OperationType.DEPOSIT
+                            ? dto.getAmount()
+                            : dto.getAmount().negate());
+                    return walletRepository.save(newWallet);
+                });
 
-                            resultWallet.set(walletRepository.save(wallet));
-                        }, () -> {
-                            var newAmount = dto.getOperationType()
-                                               .equals(OperationType.DEPOSIT) ? dto.getAmount() : dto.getAmount()
-                                                                                                     .negate();
-
-                            var newWallet = new Wallet();
-                            newWallet.setWalletId(dto.getWalletId());
-                            newWallet.setAmount(newAmount);
-
-                            resultWallet.set(walletRepository.save(newWallet));
-                        });
-
-        return walletMapper.toWalletDto(resultWallet.get());
+        return walletMapper.toWalletDto(result);
     }
 
 }

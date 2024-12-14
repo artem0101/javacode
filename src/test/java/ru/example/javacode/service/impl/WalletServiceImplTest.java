@@ -42,7 +42,6 @@ class WalletServiceImplTest {
         when(walletRepository.findWalletByWalletId(Mockito.any())).thenReturn(null);
 
         verify(walletRepository, times(1)).findWalletByWalletId(Mockito.any());
-        verify(walletMapper, times(1)).toWalletDto(Mockito.any());
     }
 
     @Test
